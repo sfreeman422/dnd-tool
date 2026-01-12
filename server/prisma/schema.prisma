@@ -1,0 +1,114 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Campaign {
+  id                String      @id @default(uuid())
+  name              String
+  description       String      @default("")
+  spotifyPlaylistId String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  flowNodes  FlowNode[]
+  flowEdges  FlowEdge[]
+  encounters Encounter[]
+}
+
+model FlowNode {
+  id          String   @id @default(uuid())
+  campaignId  String
+  type        String // 'start' | 'encounter' | 'decision' | 'end'
+  label       String
+  description String   @default("")
+  positionX   Float
+  positionY   Float
+  encounterId String?  @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  campaign    Campaign   @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  encounter   Encounter? @relation(fields: [encounterId], references: [id])
+  drawing     Drawing?
+  sourceEdges FlowEdge[] @relation("SourceNode")
+  targetEdges FlowEdge[] @relation("TargetNode")
+}
+
+model FlowEdge {
+  id           String   @id @default(uuid())
+  campaignId   String
+  sourceNodeId String
+  targetNodeId String
+  label        String?
+  createdAt    DateTime @default(now())
+
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sourceNode FlowNode @relation("SourceNode", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode FlowNode @relation("TargetNode", fields: [targetNodeId], references: [id], onDelete: Cascade)
+}
+
+model Encounter {
+  id              String   @id @default(uuid())
+  campaignId      String
+  name            String
+  storyText       String   @default("")
+  dmNotes         String   @default("")
+  spotifyTrackUri String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  campaign Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  flowNode FlowNode?
+  enemies  Enemy[]
+  loot     Loot[]
+}
+
+model Enemy {
+  id          String @id @default(uuid())
+  encounterId String
+  name        String
+  hitPoints   Int
+  armorClass  Int
+  challenge   String
+  abilities   String @default("")
+  imageUrl    String?
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+}
+
+model Loot {
+  id          String @id @default(uuid())
+  encounterId String
+  name        String
+  description String @default("")
+  quantity    Int    @default(1)
+  rarity      String @default("common")
+
+  encounter Encounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+}
+
+model Drawing {
+  id           String   @id @default(uuid())
+  flowNodeId   String   @unique
+  canvasData   String // JSON blob of canvas data
+  thumbnailUrl String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  flowNode FlowNode @relation(fields: [flowNodeId], references: [id], onDelete: Cascade)
+}
+
+model SpotifyToken {
+  id           String   @id @default(uuid())
+  userId       String   @default("default") @unique
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
